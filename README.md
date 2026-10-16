@@ -33,7 +33,7 @@ Resource names are derived from the `project`, `environment` and `location_short
 | Resource group | `rg-<project>-<environment>-<location_short>`    |
 | Static Web App | `stapp-<project>-<environment>-<location_short>` |
 
-Change the `default` of `project` in [infra/variables.tf](infra/variables.tf). It is `web-app` out of the box, so **change it for every new project**, otherwise resources will clash with other projects created from this template. Use lowercase letters, numbers and hyphens.
+Change the `default` of `project` in [infra/variables.tf](infra/variables.tf). It is `web-app` out of the box, so **change it for every new project**, otherwise resources will clash with other projects created from this template. The scripts refuse to run until it is changed. Use lowercase letters, numbers and hyphens.
 
 Set it in `variables.tf` rather than `terraform.tfvars`: `.tfvars` files are git-ignored, so the GitHub workflow would never see them.
 

@@ -48,6 +48,12 @@ environment="${TF_VAR_environment:-$(tf_default environment)}"
 location="${TF_VAR_location:-$(tf_default location)}"
 location_short="${TF_VAR_location_short:-$(tf_default location_short)}"
 
+# Projects that keep the template's name would share resources and state
+if [ "$project" = "web-app" ]; then
+  echo "Error: project is still the template default 'web-app'; change it in infra/variables.tf" >&2
+  exit 1
+fi
+
 # Resource names; keep in sync with infra/main.tf
 app_resource_group="rg-$project-$environment-$location_short"
 app_name="stapp-$project-$environment-$location_short"
