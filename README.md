@@ -132,7 +132,7 @@ You need rights to create app registrations in Entra ID and to assign roles on t
 
 - creates the app registration and service principal `sp-<project>-github`
 - gives it Contributor on the subscription (it creates resource groups, so resource-group scope is not enough)
-- adds a federated credential that trusts GitHub Actions runs on `main` of this repository, taken from the `origin` remote (set `GITHUB_REPOSITORY=<owner>/<repo>` in the environment or `.env` to override)
+- adds a federated credential that trusts GitHub Actions runs on `main` of this repository, taken from the `origin` remote (set `GITHUB_REPOSITORY=<owner>/<repo>` in the environment or `.env` to override). When the GitHub CLI is signed in, the subject format is read from GitHub, so repositories whose tokens use immutable IDs (`repo:<owner>@<id>/<repo>@<id>`) work too, and an existing credential with the wrong subject is updated
 - sets `ARM_CLIENT_ID`, `ARM_TENANT_ID` and `ARM_SUBSCRIPTION_ID` as repository variables if the [GitHub CLI](https://cli.github.com/) is installed and signed in, otherwise prints them to add by hand
 
 It reuses whatever already exists, so it is safe to run again.

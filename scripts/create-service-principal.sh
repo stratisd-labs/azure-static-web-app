@@ -51,19 +51,37 @@ if [ -z "$(az role assignment list --assignee "$sp_object_id" --role Contributor
   done
 fi
 
-if [ "$(az ad app federated-credential list --id "$app_id" \
-  --query "length([?name=='github-main'])" -o tsv)" = "0" ]; then
-  echo "Adding federated credential for $repo on main"
-  az ad app federated-credential create --id "$app_id" --output none --parameters "{
-    \"name\": \"github-main\",
-    \"issuer\": \"https://token.actions.githubusercontent.com\",
-    \"subject\": \"repo:$repo:ref:refs/heads/main\",
-    \"audiences\": [\"api://AzureADTokenExchange\"]
-  }"
+# Repositories can use a different subject format (e.g. immutable IDs:
+# repo:<owner>@<id>/<repo>@<id>), so ask GitHub for it when the GitHub CLI is signed in
+gh_ready=false
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  gh_ready=true
+fi
+sub_prefix=""
+if [ "$gh_ready" = true ]; then
+  sub_prefix=$(gh api "repos/$repo/actions/oidc/customization/sub" --jq '.sub_claim_prefix // empty' 2>/dev/null || true)
+fi
+subject="${sub_prefix:-repo:$repo}:ref:refs/heads/main"
+
+credential="{
+  \"name\": \"github-main\",
+  \"issuer\": \"https://token.actions.githubusercontent.com\",
+  \"subject\": \"$subject\",
+  \"audiences\": [\"api://AzureADTokenExchange\"]
+}"
+current_subject=$(az ad app federated-credential list --id "$app_id" \
+  --query "[?name=='github-main'] | [0].subject" -o tsv)
+if [ -z "$current_subject" ]; then
+  echo "Adding federated credential for $subject"
+  az ad app federated-credential create --id "$app_id" --output none --parameters "$credential"
+elif [ "$current_subject" != "$subject" ]; then
+  echo "Updating federated credential to $subject"
+  az ad app federated-credential update --id "$app_id" --federated-credential-id github-main \
+    --output none --parameters "$credential"
 fi
 
 # Set the repository variables with the GitHub CLI when it is signed in
-if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+if [ "$gh_ready" = true ]; then
   echo "Setting repository variables on $repo"
   gh variable set ARM_CLIENT_ID --repo "$repo" --body "$app_id"
   gh variable set ARM_TENANT_ID --repo "$repo" --body "$tenant_id"
