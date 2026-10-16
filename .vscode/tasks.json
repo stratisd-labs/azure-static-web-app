@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Provision Azure infrastructure",
+      "type": "shell",
+      "command": "sh scripts/provision.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy to Azure",
+      "type": "shell",
+      "command": "sh scripts/deploy.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "SWA_DEPLOYMENT_TOKEN": "${env:SWA_DEPLOYMENT_TOKEN}"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
