@@ -25,12 +25,12 @@ web/                The site itself (a placeholder index.html to start with)
 
 ### 1. Set the project name
 
-Resource names are derived from the `project` variable:
+Resource names are derived from the `project`, `environment` and `location_short` variables:
 
-| Resource       | Name                       |
-| -------------- | -------------------------- |
-| Resource group | `rg-<project>-prod-weu`    |
-| Static Web App | `stapp-<project>-prod-weu` |
+| Resource       | Name                                             |
+| -------------- | ------------------------------------------------ |
+| Resource group | `rg-<project>-<environment>-<location_short>`    |
+| Static Web App | `stapp-<project>-<environment>-<location_short>` |
 
 Change the `default` of `project` in [infra/variables.tf](infra/variables.tf). It is `web-app` out of the box, so **change it for every new project**, otherwise resources will clash with other projects created from this template. Use lowercase letters, numbers and hyphens.
 
@@ -38,15 +38,17 @@ Set it in `variables.tf` rather than `terraform.tfvars`: `.tfvars` files are git
 
 The other variables can be changed the same way:
 
-| Variable          | Default      | Description                                   |
-| ----------------- | ------------ | --------------------------------------------- |
-| `subscription_id` |              | Azure subscription to deploy into (see below) |
-| `project`         | `web-app`    | Project name used in resource names and tags  |
-| `location`        | `westeurope` | Azure region for all resources                |
-| `sku_tier`        | `Free`       | Static Web App SKU (`Free` or `Standard`)     |
-| `tags`            | `{}`         | Extra tags merged onto the default tags       |
+| Variable          | Default      | Description                                      |
+| ----------------- | ------------ | ------------------------------------------------ |
+| `subscription_id` |              | Azure subscription to deploy into (see below)    |
+| `project`         | `web-app`    | Project name used in resource names and tags     |
+| `environment`     | `prod`       | Environment name used in resource names and tags |
+| `location`        | `westeurope` | Azure region for all resources                   |
+| `location_short`  | `weu`        | Short region code used in resource names         |
+| `sku_tier`        | `Free`       | Static Web App SKU (`Free` or `Standard`)        |
+| `tags`            | `{}`         | Extra tags merged onto the default tags          |
 
-> If you change `location`, also update the `-weu` suffix in the resource names in `infra/main.tf` to match the new region.
+> If you change `location`, also update `location_short` to match the new region.
 
 `subscription_id` is not committed. It is taken from, in order: `infra/terraform.tfvars` (copy `terraform.tfvars.example`), `ARM_SUBSCRIPTION_ID`, or locally the subscription currently selected in the Azure CLI (`az account show`).
 

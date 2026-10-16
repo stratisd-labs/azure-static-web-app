@@ -1,19 +1,19 @@
 locals {
   tags = merge({
     project     = var.project
-    environment = "prod"
+    environment = var.environment
     managed_by  = "terraform"
   }, var.tags)
 }
 
 resource "azurerm_resource_group" "main" {
-  name     = "rg-${var.project}-prod-weu"
+  name     = "rg-${var.project}-${var.environment}-${var.location_short}"
   location = var.location
   tags     = local.tags
 }
 
 resource "azurerm_static_web_app" "main" {
-  name                = "stapp-${var.project}-prod-weu"
+  name                = "stapp-${var.project}-${var.environment}-${var.location_short}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   sku_tier            = var.sku_tier

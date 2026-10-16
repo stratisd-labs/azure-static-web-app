@@ -9,10 +9,22 @@ variable "project" {
   default     = "web-app"
 }
 
+variable "environment" {
+  description = "Environment name used in resource names and tags."
+  type        = string
+  default     = "prod"
+}
+
 variable "location" {
   description = "Azure region for all resources."
   type        = string
   default     = "westeurope"
+}
+
+variable "location_short" {
+  description = "Short region code used in resource names. Keep in sync with location."
+  type        = string
+  default     = "weu"
 }
 
 variable "sku_tier" {
