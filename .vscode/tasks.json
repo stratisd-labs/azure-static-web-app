@@ -19,10 +19,7 @@
       "type": "shell",
       "command": "sh scripts/deploy.sh",
       "options": {
-        "cwd": "${workspaceFolder}",
-        "env": {
-          "SWA_DEPLOYMENT_TOKEN": "${env:SWA_DEPLOYMENT_TOKEN}"
-        }
+        "cwd": "${workspaceFolder}"
       },
       "presentation": {
         "reveal": "always",

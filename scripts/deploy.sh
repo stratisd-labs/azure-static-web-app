@@ -1,18 +1,18 @@
 #!/usr/bin/env sh
 set -e
 
-if [ -z "$SWA_DEPLOYMENT_TOKEN" ] && [ -f .env ]; then
-  # shellcheck disable=SC1091
-  . ./.env
-fi
+# shellcheck source=scripts/common.sh
+. ./scripts/common.sh
 
-# Fall back to the token from Terraform state when running locally
-if [ -z "$SWA_DEPLOYMENT_TOKEN" ] && command -v terraform >/dev/null 2>&1; then
-  SWA_DEPLOYMENT_TOKEN=$(terraform -chdir=infra output -raw deployment_token 2>/dev/null || true)
+# Use SWA_DEPLOYMENT_TOKEN when set, otherwise read it from the Static Web App
+if [ -z "$SWA_DEPLOYMENT_TOKEN" ]; then
+  SWA_DEPLOYMENT_TOKEN=$(az staticwebapp secrets list --name "$app_name" \
+    --resource-group "$app_resource_group" --subscription "$TF_VAR_subscription_id" \
+    --query properties.apiKey -o tsv)
 fi
 
 if [ -z "$SWA_DEPLOYMENT_TOKEN" ]; then
-  echo "Error: SWA_DEPLOYMENT_TOKEN is not set" >&2
+  echo "Error: no deployment token for $app_name (has it been provisioned?)" >&2
   exit 1
 fi
 

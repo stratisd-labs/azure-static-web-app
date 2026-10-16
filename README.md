@@ -8,7 +8,8 @@ It provisions an [Azure Static Web App](https://learn.microsoft.com/azure/static
 
 ```text
 infra/              Terraform for the resource group and Static Web App
-scripts/            provision.sh - runs Terraform; deploy.sh - builds (if needed) and deploys web/
+scripts/            provision.sh - runs Terraform; deploy.sh - builds (if needed) and deploys web/;
+                    common.sh - settings shared by both
 web/                The site itself (a placeholder index.html to start with)
 .github/workflows/  provision.yml (on infra/ changes) and deploy.yml (on web/ changes)
 .vscode/tasks.json  "Provision Azure infrastructure" and "Deploy to Azure" tasks
@@ -81,7 +82,7 @@ To use an existing account instead, set `TFSTATE_RESOURCE_GROUP`, `TFSTATE_STORA
 cp .env.example .env
 ```
 
-Nothing in it is required to provision. It holds optional overrides and `SWA_DEPLOYMENT_TOKEN`. `.env` is git-ignored.
+Nothing in it is required. It only holds optional overrides. `.env` is git-ignored.
 
 Locally, Terraform authenticates with your `az login` session, so the `ARM_*` service principal variables are optional. Set them only if you want to run as the service principal.
 
@@ -103,28 +104,18 @@ Run from the repository root, or use the **Deploy to Azure** VS Code task:
 sh scripts/deploy.sh
 ```
 
-The script looks for the deployment token in this order:
-
-1. The `SWA_DEPLOYMENT_TOKEN` environment variable
-2. `SWA_DEPLOYMENT_TOKEN` in `.env`
-3. The `deployment_token` Terraform output (requires `provision.sh` to have run on this machine)
-
-To print the token yourself (e.g. to store it as a CI secret):
-
-```sh
-terraform -chdir=infra output -raw deployment_token
-```
+The script reads the deployment token from the Static Web App with the Azure CLI, so no token needs to be stored. To use a specific token instead, set `SWA_DEPLOYMENT_TOKEN` in the environment or in `.env`.
 
 ## GitHub Actions
 
-| Workflow        | Runs on push to `main` that changes                                   | Also                |
-| --------------- | --------------------------------------------------------------------- | ------------------- |
-| `provision.yml` | `infra/**`, `scripts/provision.sh`, `.github/workflows/provision.yml` | Can be run manually |
-| `deploy.yml`    | `web/**`                                                              |                     |
+| Workflow        | Runs on push to `main` that changes                                                        | Also                |
+| --------------- | ------------------------------------------------------------------------------------------ | ------------------- |
+| `provision.yml` | `infra/**`, `scripts/provision.sh`, `scripts/common.sh`, `.github/workflows/provision.yml` | Can be run manually |
+| `deploy.yml`    | `web/**`, `scripts/deploy.sh`, `scripts/common.sh`, `.github/workflows/deploy.yml`         |                     |
 
 ### Service principal
 
-The provision workflow authenticates as a service principal, both for Terraform and for the Azure CLI that creates the state storage. Create one with Contributor access to the subscription (it creates resource groups, so resource-group scope is not enough):
+Both workflows authenticate as a service principal: Terraform and the Azure CLI in provision, and the Azure CLI that reads the deployment token in deploy. Create one with Contributor access to the subscription (it creates resource groups, so resource-group scope is not enough):
 
 ```sh
 az ad sp create-for-rbac --name sp-<project>-github --role Contributor \
@@ -137,19 +128,18 @@ The output gives `appId`, `password` and `tenant`.
 
 Add these in **Settings → Secrets and variables → Actions**:
 
-| Name                      | Kind     | Value                                                           |
-| ------------------------- | -------- | --------------------------------------------------------------- |
-| `ARM_CLIENT_ID`           | Secret   | Service principal `appId`                                       |
-| `ARM_CLIENT_SECRET`       | Secret   | Service principal `password`                                    |
-| `ARM_TENANT_ID`           | Secret   | Service principal `tenant`                                      |
-| `ARM_SUBSCRIPTION_ID`     | Secret   | Subscription to deploy into                                     |
-| `SWA_DEPLOYMENT_TOKEN`    | Secret   | Output of `terraform -chdir=infra output -raw deployment_token` |
-| `TFSTATE_RESOURCE_GROUP`  | Variable | Optional, overrides the state resource group                    |
-| `TFSTATE_STORAGE_ACCOUNT` | Variable | Optional, overrides the state storage account                   |
-| `TFSTATE_CONTAINER`       | Variable | Optional, defaults to `tfstate`                                 |
-| `TFSTATE_KEY`             | Variable | Optional, defaults to `terraform.tfstate`                       |
+| Name                      | Kind     | Value                                         |
+| ------------------------- | -------- | --------------------------------------------- |
+| `ARM_CLIENT_ID`           | Secret   | Service principal `appId`                     |
+| `ARM_CLIENT_SECRET`       | Secret   | Service principal `password`                  |
+| `ARM_TENANT_ID`           | Secret   | Service principal `tenant`                    |
+| `ARM_SUBSCRIPTION_ID`     | Secret   | Subscription to deploy into                   |
+| `TFSTATE_RESOURCE_GROUP`  | Variable | Optional, overrides the state resource group  |
+| `TFSTATE_STORAGE_ACCOUNT` | Variable | Optional, overrides the state storage account |
+| `TFSTATE_CONTAINER`       | Variable | Optional, defaults to `tfstate`               |
+| `TFSTATE_KEY`             | Variable | Optional, defaults to `terraform.tfstate`     |
 
-`SWA_DEPLOYMENT_TOKEN` only exists after the first provision, so on a new project: provision first (locally or via the workflow), then add the secret, then push to `web/`.
+Deploy reads the deployment token from the Static Web App, so it only works once provision has run at least once.
 
 ## Tearing down
 

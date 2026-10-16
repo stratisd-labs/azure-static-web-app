@@ -6,6 +6,7 @@ on:
     paths:
       - web/**
       - scripts/deploy.sh
+      - scripts/common.sh
       - .github/workflows/deploy.yml
 
 concurrency:
@@ -30,4 +31,7 @@ jobs:
       - name: Deploy
         run: sh scripts/deploy.sh
         env:
-          SWA_DEPLOYMENT_TOKEN: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}

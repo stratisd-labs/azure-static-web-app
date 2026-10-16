@@ -6,6 +6,7 @@ on:
     paths:
       - infra/**
       - scripts/provision.sh
+      - scripts/common.sh
       - .github/workflows/provision.yml
   workflow_dispatch:
 
