@@ -134,7 +134,7 @@ az ad app federated-credential create --id "$app_id" --parameters '{
 
 ### Repository variables
 
-Add these in **Settings → Secrets and variables → Actions → Variables**. None of them are secrets:
+Add these in **Settings → Secrets and variables → Actions → Variables**. None of them are secrets. Until `ARM_CLIENT_ID` is set, the workflows are skipped instead of failing:
 
 | Name                      | Value                                                 |
 | ------------------------- | ----------------------------------------------------- |

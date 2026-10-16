@@ -20,6 +20,8 @@ permissions:
 jobs:
   deploy:
     name: Deploy to Azure Static Web Apps
+    # Skipped until the repository variables are set (e.g. right after creating it from the template)
+    if: vars.ARM_CLIENT_ID != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
