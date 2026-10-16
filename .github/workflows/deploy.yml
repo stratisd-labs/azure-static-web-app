@@ -1,0 +1,33 @@
+name: Deploy to Azure Static Web App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - web/**
+      - scripts/deploy.sh
+      - .github/workflows/deploy.yml
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Azure Static Web Apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Install SWA CLI
+        run: npm install -g @azure/static-web-apps-cli
+
+      - name: Deploy
+        run: sh scripts/deploy.sh
+        env:
+          SWA_DEPLOYMENT_TOKEN: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
