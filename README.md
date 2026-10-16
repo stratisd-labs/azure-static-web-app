@@ -11,7 +11,7 @@ infra/              Terraform for the resource group and Static Web App
 scripts/            provision.sh - runs Terraform; deploy.sh - builds (if needed) and deploys web/;
                     common.sh - settings shared by both
 web/                The site itself (a placeholder index.html to start with)
-.github/workflows/  provision.yml (on infra/ changes) and deploy.yml (on web/ changes)
+.github/workflows/  deploy.yml - provisions and deploys on push to main
 .vscode/tasks.json  "Provision Azure infrastructure" and "Deploy to Azure" tasks
 ```
 
@@ -108,14 +108,18 @@ The script reads the deployment token from the Static Web App with the Azure CLI
 
 ## GitHub Actions
 
-| Workflow        | Runs on push to `main` that changes                                                        | Also                |
-| --------------- | ------------------------------------------------------------------------------------------ | ------------------- |
-| `provision.yml` | `infra/**`, `scripts/provision.sh`, `scripts/common.sh`, `.github/workflows/provision.yml` | Can be run manually |
-| `deploy.yml`    | `web/**`, `scripts/deploy.sh`, `scripts/common.sh`, `.github/workflows/deploy.yml`         |                     |
+One workflow, `deploy.yml`, runs on push to `main`. It only runs the jobs whose files changed, and deploy always waits for provision, so a push that changes both never deploys to an app that doesn't exist yet:
+
+| Job       | Runs when the push changes                                                              |
+| --------- | --------------------------------------------------------------------------------------- |
+| Provision | `infra/**`, `scripts/provision.sh`, `scripts/common.sh`, `.github/workflows/deploy.yml` |
+| Deploy    | `web/**`, `scripts/deploy.sh`, `scripts/common.sh`, `.github/workflows/deploy.yml`      |
+
+Running it manually (**Actions → Provision and deploy → Run workflow**) runs both jobs.
 
 ### Service principal
 
-Both workflows sign in to Azure as a service principal using [OpenID Connect](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect): GitHub issues a short-lived token for each run, so there is no client secret to store or rotate.
+Both jobs sign in to Azure as a service principal using [OpenID Connect](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect): GitHub issues a short-lived token for each run, so there is no client secret to store or rotate.
 
 Create one per project with Contributor access to the subscription (it creates resource groups, so resource-group scope is not enough), and trust GitHub Actions runs on `main` of this repository:
 
@@ -134,7 +138,7 @@ az ad app federated-credential create --id "$app_id" --parameters '{
 
 ### Repository variables
 
-Add these in **Settings → Secrets and variables → Actions → Variables**. None of them are secrets. Until `ARM_CLIENT_ID` is set, the workflows are skipped instead of failing:
+Add these in **Settings → Secrets and variables → Actions → Variables**. None of them are secrets. Until `ARM_CLIENT_ID` is set, the workflow is skipped instead of failing:
 
 | Name                      | Value                                                 |
 | ------------------------- | ----------------------------------------------------- |
@@ -146,7 +150,7 @@ Add these in **Settings → Secrets and variables → Actions → Variables**. N
 | `TFSTATE_CONTAINER`       | Optional, defaults to `tfstate`                       |
 | `TFSTATE_KEY`             | Optional, defaults to `terraform.tfstate`             |
 
-Deploy reads the deployment token from the Static Web App, so it only works once provision has run at least once.
+On a new project, the first push after setting the variables runs both jobs only if it changes files for both. To provision and deploy everything at once, run the workflow manually.
 
 ## Tearing down
 

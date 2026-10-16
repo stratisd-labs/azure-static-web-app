@@ -1,13 +1,14 @@
-name: Deploy to Azure Static Web App
+name: Provision and deploy
 
 on:
   push:
     branches: [main]
     paths:
+      - infra/**
       - web/**
-      - scripts/deploy.sh
-      - scripts/common.sh
+      - scripts/**
       - .github/workflows/deploy.yml
+  workflow_dispatch:
 
 concurrency:
   group: deploy-production
@@ -18,10 +19,72 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Deploy to Azure Static Web Apps
+  changes:
+    name: Detect changes
     # Skipped until the repository variables are set (e.g. right after creating it from the template)
     if: vars.ARM_CLIENT_ID != ''
+    runs-on: ubuntu-latest
+    outputs:
+      infra: ${{ steps.filter.outputs.infra }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # Manual runs, new branches and force pushes run both jobs
+          if [ "$GITHUB_EVENT_NAME" != "push" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "infra=true" >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
+          matches() { printf '%s\n' "$changed" | grep -qE "$1" && echo true || echo false; }
+          echo "infra=$(matches '^(infra/|scripts/(provision|common)\.sh$|\.github/workflows/deploy\.yml$)')" >> "$GITHUB_OUTPUT"
+          echo "web=$(matches '^(web/|scripts/(deploy|common)\.sh$|\.github/workflows/deploy\.yml$)')" >> "$GITHUB_OUTPUT"
+
+  provision:
+    name: Provision Azure infrastructure
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.ARM_CLIENT_ID }}
+          tenant-id: ${{ vars.ARM_TENANT_ID }}
+          subscription-id: ${{ vars.ARM_SUBSCRIPTION_ID }}
+
+      - name: Provision
+        run: sh scripts/provision.sh
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+          TFSTATE_RESOURCE_GROUP: ${{ vars.TFSTATE_RESOURCE_GROUP }}
+          TFSTATE_STORAGE_ACCOUNT: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
+          TFSTATE_CONTAINER: ${{ vars.TFSTATE_CONTAINER }}
+          TFSTATE_KEY: ${{ vars.TFSTATE_KEY }}
+
+  deploy:
+    name: Deploy to Azure Static Web Apps
+    needs: [changes, provision]
+    # Wait for provision when it runs, but also deploy when it was skipped
+    if: >-
+      always() && needs.changes.outputs.web == 'true' &&
+      (needs.provision.result == 'success' || needs.provision.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
