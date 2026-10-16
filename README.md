@@ -11,7 +11,7 @@ infra/              Terraform for the resource group and Static Web App
 scripts/            provision.sh - runs Terraform; deploy.sh - builds (if needed) and deploys web/;
                     common.sh - settings shared by both
 web/                The site itself (a placeholder index.html to start with)
-.github/workflows/  deploy.yml - provisions and deploys on push to main
+.github/workflows/  provision-and-deploy.yml - provisions and deploys on push to main
 .vscode/tasks.json  "Provision Azure infrastructure" and "Deploy to Azure" tasks
 ```
 
@@ -108,12 +108,12 @@ The script reads the deployment token from the Static Web App with the Azure CLI
 
 ## GitHub Actions
 
-One workflow, `deploy.yml`, runs on push to `main`. It only runs the jobs whose files changed, and deploy always waits for provision, so a push that changes both never deploys to an app that doesn't exist yet:
+One workflow, `provision-and-deploy.yml`, runs on push to `main`. It only runs the jobs whose files changed, and deploy always waits for provision, so a push that changes both never deploys to an app that doesn't exist yet:
 
-| Job       | Runs when the push changes                                                              |
-| --------- | --------------------------------------------------------------------------------------- |
-| Provision | `infra/**`, `scripts/provision.sh`, `scripts/common.sh`, `.github/workflows/deploy.yml` |
-| Deploy    | `web/**`, `scripts/deploy.sh`, `scripts/common.sh`, `.github/workflows/deploy.yml`      |
+| Job       | Runs when the push changes                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------------- |
+| Provision | `infra/**`, `scripts/provision.sh`, `scripts/common.sh`, `.github/workflows/provision-and-deploy.yml` |
+| Deploy    | `web/**`, `scripts/deploy.sh`, `scripts/common.sh`, `.github/workflows/provision-and-deploy.yml`      |
 
 Running it manually (**Actions → Provision and deploy → Run workflow**) runs both jobs.
 

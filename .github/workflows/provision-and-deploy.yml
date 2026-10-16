@@ -7,7 +7,7 @@ on:
       - infra/**
       - web/**
       - scripts/**
-      - .github/workflows/deploy.yml
+      - .github/workflows/provision-and-deploy.yml
   workflow_dispatch:
 
 concurrency:
@@ -44,8 +44,8 @@ jobs:
           fi
           changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
           matches() { printf '%s\n' "$changed" | grep -qE "$1" && echo true || echo false; }
-          echo "infra=$(matches '^(infra/|scripts/(provision|common)\.sh$|\.github/workflows/deploy\.yml$)')" >> "$GITHUB_OUTPUT"
-          echo "web=$(matches '^(web/|scripts/(deploy|common)\.sh$|\.github/workflows/deploy\.yml$)')" >> "$GITHUB_OUTPUT"
+          echo "infra=$(matches '^(infra/|scripts/(provision|common)\.sh$|\.github/workflows/provision-and-deploy\.yml$)')" >> "$GITHUB_OUTPUT"
+          echo "web=$(matches '^(web/|scripts/(deploy|common)\.sh$|\.github/workflows/provision-and-deploy\.yml$)')" >> "$GITHUB_OUTPUT"
 
   provision:
     name: Provision Azure infrastructure
