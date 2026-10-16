@@ -115,29 +115,36 @@ The script reads the deployment token from the Static Web App with the Azure CLI
 
 ### Service principal
 
-Both workflows authenticate as a service principal: Terraform and the Azure CLI in provision, and the Azure CLI that reads the deployment token in deploy. Create one with Contributor access to the subscription (it creates resource groups, so resource-group scope is not enough):
+Both workflows sign in to Azure as a service principal using [OpenID Connect](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect): GitHub issues a short-lived token for each run, so there is no client secret to store or rotate.
+
+Create one per project with Contributor access to the subscription (it creates resource groups, so resource-group scope is not enough), and trust GitHub Actions runs on `main` of this repository:
 
 ```sh
-az ad sp create-for-rbac --name sp-<project>-github --role Contributor \
-  --scopes /subscriptions/<subscription-id>
+app_id=$(az ad app create --display-name sp-<project>-github --query appId -o tsv)
+az ad sp create --id "$app_id"
+az role assignment create --assignee "$app_id" --role Contributor \
+  --scope /subscriptions/<subscription-id>
+az ad app federated-credential create --id "$app_id" --parameters '{
+  "name": "github-main",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:<owner>/<repo>:ref:refs/heads/main",
+  "audiences": ["api://AzureADTokenExchange"]
+}'
 ```
 
-The output gives `appId`, `password` and `tenant`.
+### Repository variables
 
-### Repository secrets and variables
+Add these in **Settings → Secrets and variables → Actions → Variables**. None of them are secrets:
 
-Add these in **Settings → Secrets and variables → Actions**:
-
-| Name                      | Kind     | Value                                         |
-| ------------------------- | -------- | --------------------------------------------- |
-| `ARM_CLIENT_ID`           | Secret   | Service principal `appId`                     |
-| `ARM_CLIENT_SECRET`       | Secret   | Service principal `password`                  |
-| `ARM_TENANT_ID`           | Secret   | Service principal `tenant`                    |
-| `ARM_SUBSCRIPTION_ID`     | Secret   | Subscription to deploy into                   |
-| `TFSTATE_RESOURCE_GROUP`  | Variable | Optional, overrides the state resource group  |
-| `TFSTATE_STORAGE_ACCOUNT` | Variable | Optional, overrides the state storage account |
-| `TFSTATE_CONTAINER`       | Variable | Optional, defaults to `tfstate`               |
-| `TFSTATE_KEY`             | Variable | Optional, defaults to `terraform.tfstate`     |
+| Name                      | Value                                                 |
+| ------------------------- | ----------------------------------------------------- |
+| `ARM_CLIENT_ID`           | `$app_id` from above                                  |
+| `ARM_TENANT_ID`           | Tenant ID (`az account show --query tenantId -o tsv`) |
+| `ARM_SUBSCRIPTION_ID`     | Subscription to deploy into                           |
+| `TFSTATE_RESOURCE_GROUP`  | Optional, overrides the state resource group          |
+| `TFSTATE_STORAGE_ACCOUNT` | Optional, overrides the state storage account         |
+| `TFSTATE_CONTAINER`       | Optional, defaults to `tfstate`                       |
+| `TFSTATE_KEY`             | Optional, defaults to `terraform.tfstate`             |
 
 Deploy reads the deployment token from the Static Web App, so it only works once provision has run at least once.
 

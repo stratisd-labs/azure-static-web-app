@@ -16,8 +16,9 @@ tf_default() {
   ' infra/variables.tf
 }
 
-# Auth: Terraform uses the service principal in ARM_CLIENT_ID / ARM_CLIENT_SECRET /
-# ARM_TENANT_ID when set (CI), otherwise the current `az login` session (local)
+# Auth: in CI, azure/login signs the Azure CLI in and Terraform uses OIDC (ARM_USE_OIDC).
+# Locally, both use the current `az login` session, or the service principal in
+# ARM_CLIENT_ID / ARM_CLIENT_SECRET / ARM_TENANT_ID when set
 if [ -n "$ARM_CLIENT_ID" ] && [ -n "$ARM_CLIENT_SECRET" ] && ! az account show >/dev/null 2>&1; then
   az login --service-principal --username "$ARM_CLIENT_ID" --password "$ARM_CLIENT_SECRET" \
     --tenant "$ARM_TENANT_ID" --output none

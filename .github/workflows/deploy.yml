@@ -13,6 +13,10 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy:
     name: Deploy to Azure Static Web Apps
@@ -28,10 +32,13 @@ jobs:
       - name: Install SWA CLI
         run: npm install -g @azure/static-web-apps-cli
 
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.ARM_CLIENT_ID }}
+          tenant-id: ${{ vars.ARM_TENANT_ID }}
+          subscription-id: ${{ vars.ARM_SUBSCRIPTION_ID }}
+
       - name: Deploy
         run: sh scripts/deploy.sh
         env:
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
