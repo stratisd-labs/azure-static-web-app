@@ -2,6 +2,19 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Create GitHub service principal",
+      "type": "shell",
+      "command": "sh scripts/create-service-principal.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Provision Azure infrastructure",
       "type": "shell",
       "command": "sh scripts/provision.sh",

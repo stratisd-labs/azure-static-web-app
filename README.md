@@ -9,10 +9,11 @@ It provisions an [Azure Static Web App](https://learn.microsoft.com/azure/static
 ```text
 infra/              Terraform for the resource group and Static Web App
 scripts/            provision.sh - runs Terraform; deploy.sh - builds (if needed) and deploys web/;
-                    common.sh - settings shared by both
+                    create-service-principal.sh - sets up the identity GitHub Actions uses;
+                    common.sh - settings shared by all of them
 web/                The site itself (a placeholder index.html to start with)
 .github/workflows/  provision-and-deploy.yml - provisions and deploys on push to main
-.vscode/tasks.json  "Provision Azure infrastructure" and "Deploy to Azure" tasks
+.vscode/tasks.json  A task for each script
 ```
 
 ## Prerequisites
@@ -121,28 +122,28 @@ Running it manually (**Actions → Provision and deploy → Run workflow**) runs
 
 Both jobs sign in to Azure as a service principal using [OpenID Connect](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect): GitHub issues a short-lived token for each run, so there is no client secret to store or rotate.
 
-Create one per project with Contributor access to the subscription (it creates resource groups, so resource-group scope is not enough), and trust GitHub Actions runs on `main` of this repository:
+Create one per project from the repository root, or use the **Create GitHub service principal** VS Code task:
 
 ```sh
-app_id=$(az ad app create --display-name sp-<project>-github --query appId -o tsv)
-az ad sp create --id "$app_id"
-az role assignment create --assignee "$app_id" --role Contributor \
-  --scope /subscriptions/<subscription-id>
-az ad app federated-credential create --id "$app_id" --parameters '{
-  "name": "github-main",
-  "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:<owner>/<repo>:ref:refs/heads/main",
-  "audiences": ["api://AzureADTokenExchange"]
-}'
+sh scripts/create-service-principal.sh
 ```
+
+You need rights to create app registrations in Entra ID and to assign roles on the subscription. The script:
+
+- creates the app registration and service principal `sp-<project>-github`
+- gives it Contributor on the subscription (it creates resource groups, so resource-group scope is not enough)
+- adds a federated credential that trusts GitHub Actions runs on `main` of this repository, taken from the `origin` remote (set `GITHUB_REPOSITORY=<owner>/<repo>` in the environment or `.env` to override)
+- sets `ARM_CLIENT_ID`, `ARM_TENANT_ID` and `ARM_SUBSCRIPTION_ID` as repository variables if the [GitHub CLI](https://cli.github.com/) is installed and signed in, otherwise prints them to add by hand
+
+It reuses whatever already exists, so it is safe to run again.
 
 ### Repository variables
 
-Add these in **Settings → Secrets and variables → Actions → Variables**. None of them are secrets. Until `ARM_CLIENT_ID` is set, the workflow is skipped instead of failing:
+These live in **Settings → Secrets and variables → Actions → Variables**. None of them are secrets. Until `ARM_CLIENT_ID` is set, the workflow is skipped instead of failing:
 
 | Name                      | Value                                                 |
 | ------------------------- | ----------------------------------------------------- |
-| `ARM_CLIENT_ID`           | `$app_id` from above                                  |
+| `ARM_CLIENT_ID`           | Application (client) ID of the service principal      |
 | `ARM_TENANT_ID`           | Tenant ID (`az account show --query tenantId -o tsv`) |
 | `ARM_SUBSCRIPTION_ID`     | Subscription to deploy into                           |
 | `TFSTATE_RESOURCE_GROUP`  | Optional, overrides the state resource group          |

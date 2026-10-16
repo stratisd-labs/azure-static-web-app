@@ -1,4 +1,4 @@
-# Shared setup for provision.sh and deploy.sh. Sourced from the repository root.
+# Shared setup for the scripts in this folder. Sourced from the repository root.
 
 # Load .env and export its values so Terraform and the Azure CLI can see them
 if [ -f .env ]; then
