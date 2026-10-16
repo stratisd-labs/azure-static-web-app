@@ -59,17 +59,21 @@ Put your site in `web/`. The included `web/index.html` is only a placeholder.
 - **Plain static site:** put the HTML, CSS, JS and assets directly in `web/`. They are deployed as-is.
 - **Site with a build step** (Vite, React, etc.): add a `web/package.json` with a `build` script that outputs to `web/dist/`. The deploy script runs `npm ci` and `npm run build`, then deploys `web/dist/`.
 
-### 3. Set up Terraform state storage
+### 3. Terraform state storage
 
-Terraform state is kept in an Azure Storage account so that local runs and GitHub Actions share it. One account can hold the state of many projects: each repository gets its own `<repo-name>.tfstate` file (override with `TFSTATE_KEY`).
+Terraform state is kept in an Azure Storage account so that local runs and GitHub Actions share it. Each project gets its own, which `provision.sh` creates on the first run:
 
-If your team already has a state storage account, use it. Otherwise create one (the name must be globally unique):
+| Resource         | Name                                              |
+| ---------------- | ------------------------------------------------- |
+| Resource group   | `rg-<project>-tfstate-<location_short>`           |
+| Storage account  | `st<project>tf<suffix>` (letters and digits only) |
+| Container / blob | `tfstate` / `terraform.tfstate`                   |
 
-```sh
-az group create --name rg-tfstate --location westeurope
-az storage account create --name <stateaccount> --resource-group rg-tfstate --sku Standard_LRS
-az storage container create --name tfstate --account-name <stateaccount> --auth-mode key
-```
+Storage account names must be globally unique, so `<suffix>` is derived from the subscription ID and project name. It is the same on every run and every machine. The account has blob versioning on, so earlier versions of the state can be restored.
+
+The state lives outside the app's resource group on purpose: `terraform destroy` must not delete its own state.
+
+To use an existing account instead, set `TFSTATE_RESOURCE_GROUP`, `TFSTATE_STORAGE_ACCOUNT`, `TFSTATE_CONTAINER` and `TFSTATE_KEY` (in `.env` and as GitHub variables). The script still creates them if they don't exist.
 
 ### 4. Configure local settings
 
@@ -77,7 +81,7 @@ az storage container create --name tfstate --account-name <stateaccount> --auth-
 cp .env.example .env
 ```
 
-Fill in `TFSTATE_RESOURCE_GROUP` and `TFSTATE_STORAGE_ACCOUNT` (and `TFSTATE_CONTAINER` if it isn't `tfstate`). `.env` is git-ignored.
+Nothing in it is required to provision. It holds optional overrides and `SWA_DEPLOYMENT_TOKEN`. `.env` is git-ignored.
 
 Locally, Terraform authenticates with your `az login` session, so the `ARM_*` service principal variables are optional. Set them only if you want to run as the service principal.
 
@@ -89,7 +93,7 @@ Run from the repository root, or use the **Provision Azure infrastructure** VS C
 sh scripts/provision.sh
 ```
 
-The script runs `terraform init` against the remote state and then `terraform apply`. Locally it asks for confirmation before applying. After `apply`, the site URL is shown in the `default_hostname` output.
+The script creates the state storage if needed, runs `terraform init` against it and then `terraform apply`. Locally it asks for confirmation before applying. After `apply`, the site URL is shown in the `default_hostname` output.
 
 ### 6. Deploy the site
 
@@ -120,7 +124,7 @@ terraform -chdir=infra output -raw deployment_token
 
 ### Service principal
 
-The provision workflow authenticates as a service principal. Create one with Contributor access to the subscription:
+The provision workflow authenticates as a service principal, both for Terraform and for the Azure CLI that creates the state storage. Create one with Contributor access to the subscription (it creates resource groups, so resource-group scope is not enough):
 
 ```sh
 az ad sp create-for-rbac --name sp-<project>-github --role Contributor \
@@ -140,9 +144,10 @@ Add these in **Settings → Secrets and variables → Actions**:
 | `ARM_TENANT_ID`           | Secret   | Service principal `tenant`                                      |
 | `ARM_SUBSCRIPTION_ID`     | Secret   | Subscription to deploy into                                     |
 | `SWA_DEPLOYMENT_TOKEN`    | Secret   | Output of `terraform -chdir=infra output -raw deployment_token` |
-| `TFSTATE_RESOURCE_GROUP`  | Variable | Resource group of the state storage account                     |
-| `TFSTATE_STORAGE_ACCOUNT` | Variable | Name of the state storage account                               |
+| `TFSTATE_RESOURCE_GROUP`  | Variable | Optional, overrides the state resource group                    |
+| `TFSTATE_STORAGE_ACCOUNT` | Variable | Optional, overrides the state storage account                   |
 | `TFSTATE_CONTAINER`       | Variable | Optional, defaults to `tfstate`                                 |
+| `TFSTATE_KEY`             | Variable | Optional, defaults to `terraform.tfstate`                       |
 
 `SWA_DEPLOYMENT_TOKEN` only exists after the first provision, so on a new project: provision first (locally or via the workflow), then add the secret, then push to `web/`.
 
@@ -153,3 +158,9 @@ terraform -chdir=infra destroy
 ```
 
 Run `provision.sh` first on a fresh clone so Terraform is initialised against the remote state.
+
+This leaves the state storage in place. Once you no longer need the state, remove it too:
+
+```sh
+az group delete --name rg-<project>-tfstate-<location_short>
+```
