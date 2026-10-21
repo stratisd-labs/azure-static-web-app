@@ -43,6 +43,12 @@ if [ -z "$TF_VAR_subscription_id" ]; then
 fi
 export TF_VAR_subscription_id
 
+# Owner tag on the resources
+if [ -z "$TF_VAR_owner" ] && [ -n "$RESOURCE_OWNER" ]; then
+  TF_VAR_owner="$RESOURCE_OWNER"
+fi
+export TF_VAR_owner
+
 project="${TF_VAR_project:-$(tf_default project)}"
 environment="${TF_VAR_environment:-$(tf_default environment)}"
 location="${TF_VAR_location:-$(tf_default location)}"

@@ -3,7 +3,7 @@ locals {
     project     = var.project
     environment = var.environment
     managed_by  = "terraform"
-  }, var.tags)
+  }, var.owner != "" ? { owner = var.owner } : {}, var.tags)
 }
 
 resource "azurerm_resource_group" "main" {

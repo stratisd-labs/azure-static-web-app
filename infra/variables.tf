@@ -27,6 +27,12 @@ variable "location_short" {
   default     = "weu"
 }
 
+variable "owner" {
+  description = "Owner of the resources, added as the owner tag. Set from RESOURCE_OWNER."
+  type        = string
+  default     = ""
+}
+
 variable "sku_tier" {
   description = "Static Web App SKU tier (Free or Standard)."
   type        = string

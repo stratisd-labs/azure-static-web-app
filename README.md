@@ -48,9 +48,12 @@ The other variables can be changed the same way:
 | `location`        | `westeurope` | Azure region for all resources                   |
 | `location_short`  | `weu`        | Short region code used in resource names         |
 | `sku_tier`        | `Free`       | Static Web App SKU (`Free` or `Standard`)        |
+| `owner`           |              | Owner tag on the resources (see below)           |
 | `tags`            | `{}`         | Extra tags merged onto the default tags          |
 
 > If you change `location`, also update `location_short` to match the new region.
+
+`owner` is taken from `RESOURCE_OWNER` (in `.env` or as a GitHub variable). The tag is left out when it is empty.
 
 `subscription_id` is not committed. It is taken from, in order: `infra/terraform.tfvars` (copy `terraform.tfvars.example`), `ARM_SUBSCRIPTION_ID`, or locally the subscription currently selected in the Azure CLI (`az account show`).
 
@@ -146,6 +149,7 @@ These live in **Settings → Secrets and variables → Actions → Variables**. 
 | `ARM_CLIENT_ID`           | Application (client) ID of the service principal      |
 | `ARM_TENANT_ID`           | Tenant ID (`az account show --query tenantId -o tsv`) |
 | `ARM_SUBSCRIPTION_ID`     | Subscription to deploy into                           |
+| `RESOURCE_OWNER`          | Optional, value of the `owner` tag                    |
 | `TFSTATE_RESOURCE_GROUP`  | Optional, overrides the state resource group          |
 | `TFSTATE_STORAGE_ACCOUNT` | Optional, overrides the state storage account         |
 | `TFSTATE_CONTAINER`       | Optional, defaults to `tfstate`                       |
